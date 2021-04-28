@@ -1,0 +1,3 @@
+Table Name, Column Name, Column Type, ClusteringKey,Indexed,Min,Max 
+pcs,student_id,java.lang.String,False,False
+pcs,pc_id,java.lang.Integer,True,False
