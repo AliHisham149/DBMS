@@ -1,27 +1,23 @@
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.Vector;
 public class DBApp implements DBAppInterface{
 
-	private Vector<Table> tables = new Vector<Table>();
+	private ArrayList<Table> tables = new ArrayList<Table>();
 	
 	@Override
 	public void init() {
 
 	}
-//	public void ser(Table e) throws IOException {
-//		try{		FileOutputStream fOut = new FileOutputStream("/tmp/table.ser");
-//		ObjectOutputStream out = new ObjectOutputStream(fOut);
-//		out.writeObject(e);
-//		out.close();
-//		fOut.close();}catch(IOException i) {
-//		i.printStackTrace();	
-//		}
-//	}
+
 
 	@Override
 	public void createTable(String strTableName, 
@@ -30,16 +26,48 @@ public class DBApp implements DBAppInterface{
 			Hashtable<String,String> htblColNameMin, 
 			Hashtable<String,String> htblColNameMax ) 
 			 throws DBAppException {
-		tables.forEach((c)->{
-			if(c.getName().equals(strTableName)) {			
-					return;				
-				}
-			
-		});
+
+		System.out.println(tables);
 	Table createdTable = new Table(strTableName,strClusteringKeyColumn,htblColNameType,htblColNameMin,htblColNameMax);
 		this.tables.add(createdTable);
+		writeTables(tables);
+		
 	}
+	public void writeTables(ArrayList<Table> tmpTables) {
 
+		try {
+			FileOutputStream fileOut = new FileOutputStream("./src/main/resources/data/" + "tablesArray" + ".class");
+			ObjectOutputStream out = new ObjectOutputStream(fileOut);
+			out.writeObject(tmpTables);
+			out.close();
+			fileOut.close();
+//			System.out.println("Serialized data is saved in " + strTableName + " P" + indicator + ".class");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	public ArrayList<Table> readTables() {
+
+		try {
+			FileInputStream fileIn = new FileInputStream("./src/main/resources/data/" + "tablesArray" + ".class");
+			ObjectInputStream in = new ObjectInputStream(fileIn);
+			ArrayList<Table> e = (ArrayList<Table>) in.readObject();
+			System.out.println(e);
+		
+
+			in.close();
+			fileIn.close();
+			return e;
+		} catch (IOException i) {
+			i.printStackTrace();
+			return null;
+
+		} catch (ClassNotFoundException c) {
+			System.out.println("Page class not found");
+			c.printStackTrace();
+			return null;
+		}
+	}
 	@Override
 	public void createIndex(String strTableName, String[] strarrColumnNames) throws DBAppException {
 		
@@ -48,56 +76,119 @@ public class DBApp implements DBAppInterface{
 
 	@Override
 	public void insertIntoTable(String strTableName, Hashtable<String, Object> htblColNameValue) throws DBAppException {
-		tables.forEach((c)->{
-			if(c.getName().equals(strTableName)) {		
-				String key = c.getTableKey();
-					try {
-						
-						c.insertSortedTuple(htblColNameValue,strTableName,key);
-					} catch (DBAppException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					
-					}				
-				}
-			
-		});
+		tables = readTables();
+	
+		System.out.println(htblColNameValue);
+		ArrayList<String> tmpNames = new ArrayList<String>();
+		for(Table table:tables) {
 		
-//		throw new DBAppException("");
+			tmpNames.add(table.getName());
+			if(table.getName().equals(strTableName)) {
+				String key = table.getTableKey();
+				Set<String>	names= table.getHtblColNameType().keySet();
+				Set<String>	insertNames =  htblColNameValue.keySet();
+				System.out.println(names);
+				System.out.println(insertNames);
+				for(String name: insertNames) {
+					if(!names.contains(name)) {
+						throw new DBAppException();
+					}
+				}
+				for(String name: names) {
+					if(!insertNames.contains(name)) {
+						return;
+					}
+					
+				}
+				table.insertSortedTuple(htblColNameValue, strTableName,key);
+				return;
+			}
+		}
+		if(!tmpNames.contains(strTableName)) {
+			throw new DBAppException();
+		}
+		
+		
+		
+//		throw new DBAppException("Table not found");
+		
+		
 		
 	}
 
 	@Override
-	public void updateTable(String strTableName, String strClusteringKeyValue, Hashtable<String, Object> htblColumnNameValue)
+	public void updateTable(String strTableName, String strClusteringKeyValue, Hashtable<String, Object> htblColNameValue)
 			throws DBAppException {
-		tables.forEach((c) -> {
-			String key = c.getTableKey();
-			if (c.getName().equals(strTableName)) {
-				
-				try {
-				c.updateTuple(strClusteringKeyValue,htblColumnNameValue,strTableName,key);
-				return;
-				}catch(DBAppException e){
-				
+		
+		tables = readTables();
+
+		ArrayList<String> tmpNames = new ArrayList<String>();
+		for(Table table:tables) {
+			
+			String key = table.getTableKey();
+			if(table.getName().equals(strTableName)){
+				Set<String>	names= table.getHtblColNameType().keySet();
+				Set<String>	insertNames =  htblColNameValue.keySet();
+				System.out.println(names);
+				System.out.println(insertNames);
+				for(String name: insertNames) {
+					if(!names.contains(name)) {
+						throw new DBAppException();
+					}
 				}
+				for(String name: names) {
+					if(!insertNames.contains(name)) {
+						return;
+					}
+					
+				}
+				table.updateTuple(strClusteringKeyValue,htblColNameValue,strTableName,key);
+				return;
+			}
+			tmpNames.add(table.getName());
+		}
 
-			} 
-
-		});
+		if(!tmpNames.contains(strTableName)) {
+			throw new DBAppException();
+		}
+		
 		
 		
 	}
 
 	@Override
 	public void deleteFromTable(String strTableName, Hashtable<String, Object> htblColNameValue) throws DBAppException {
-		tables.forEach((c) -> {
-			String key = c.getTableKey();
-			if (c.getName().equals(strTableName)) {
-				
-				c.deleteTuple(htblColNameValue,strTableName,key);
+		tables = readTables();
+		ArrayList<String> tmpNames = new ArrayList<String>();
+		for(Table table:tables) {
+			if(table.getName().equals(strTableName)) {
+				String key = table.getTableKey();
+				if(table.getName().equals(strTableName)) {
+					Set<String>	names= table.getHtblColNameType().keySet();
+					Set<String>	insertNames =  htblColNameValue.keySet();
+					System.out.println(names);
+					System.out.println(insertNames);
+					for(String name: insertNames) {
+						if(!names.contains(name)) {
+							throw new DBAppException();
+						}
+						
+					}
+					for(String name: names) {
+						if(!insertNames.contains(name)) {
+							return;
+						}
+						
+					}
+					table.deleteTuple(htblColNameValue, strTableName, key);
+				}
 			}
-
-		});
+			tmpNames.add(table.getName());
+		}
+		if(!tmpNames.contains(strTableName)) {
+			throw new DBAppException();
+		}
+		
 	}
 
 	@Override

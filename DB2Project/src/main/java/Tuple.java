@@ -1,6 +1,10 @@
 
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Vector;
 
@@ -69,25 +73,10 @@ public class Tuple implements Serializable, Comparable<Object> {
 		return e;
 		
 	}
+
 	public static void main (String[] args){
-		Vector a1=new Vector();
-		a1.add(2);
-		a1.add("Ahmed Noor");
-		a1.add("2.5");
-		Vector b1=new Vector();
-		b1.add(2);
-		b1.add("Ahmed Noor");
-		b1.add("2.5");
-		Vector a2=new Vector();
-		a2.add("id");
-		a2.add("name");
-		a2.add("gpa");
-		Vector b2=new Vector();
-		b2.add("id");
-		b2.add("name");
-		b2.add("gpa");
-		Tuple t1=new Tuple(a1,0,a2);
-		Tuple t2=new Tuple(b1,0,b2);
-		System.out.println(t2.compareTo(t1));
 	}
+	
+	
+
 }

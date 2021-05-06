@@ -11,8 +11,11 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Vector;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Set;
@@ -26,12 +29,14 @@ public class Table implements Serializable {
 	 */
 	private static final long serialVersionUID = 1L;
 	// private static final long serialVersionUID = 1L;
-	transient private Vector<Integer> pages = new Vector<Integer>();
+	 private Vector<Integer> pages = new Vector<Integer>();
+	 private Vector<Tuple> tuples = new Vector<Tuple>();
 	private String tableName = "";
 	private  int maxRows ;
 	private int noRows = 0;
 	private String tableKey = "";
 	private int attrNo = 0;
+	private Hashtable<String,String> htblColNameType;
 	private Vector<String> columnNames = new Vector<String>();
 	private Properties properties = new Properties();
 
@@ -39,6 +44,7 @@ public class Table implements Serializable {
 			Hashtable<String, String> htblColNameMin, Hashtable<String, String> htblColNameMax) {
 		this.tableName = strTableName;
 		this.tableKey = strClusteringKey;
+		this.htblColNameType = htblColNameType;
 		try {
 			this.addToMeta(strClusteringKey, htblColNameType);
 		} catch (IOException e) {
@@ -48,6 +54,12 @@ public class Table implements Serializable {
 		pages.add(0);
 		this.writePage(first, 0,strTableName);
 		readFromProps();
+	}
+	public Hashtable<String, String> getHtblColNameType() {
+		return htblColNameType;
+	}
+	public void setHtblColNameType(Hashtable<String, String> htblColNameType) {
+		this.htblColNameType = htblColNameType;
 	}
 	//Method that reads the DBApp.config File to get the maxRows and maxKeys
 	public void readFromProps() {
@@ -64,6 +76,7 @@ public class Table implements Serializable {
 		} catch (IOException ex) {
 		    
 		}
+		int[] a = new int[1];
 		System.out.println(prop.getProperty("MaximumRowsCountinPage"));
 		System.out.println(prop.getProperty("MaximumKeysCountinIndexBucket"));
 		String tmpMax=prop.getProperty("MaximumRowsCountinPage");
@@ -71,7 +84,7 @@ public class Table implements Serializable {
 	}
 	//methods that adds to metadata.csv
 	public void addToMeta(String key, Hashtable<String, String> table) throws IOException {
-		FileWriter writer = new FileWriter(new File("./src/main/resources/metadata.csv"));
+		FileWriter writer = new FileWriter(new File("./src/main/resources/metadata.csv"),true);
 		try {
 			writer.append("Table Name, Column Name, Column Type, ClusteringKey,Indexed,Min,Max ");
 			writer.append('\n');
@@ -221,7 +234,7 @@ public class Table implements Serializable {
 	public void writePage(Page page, int indicator,String strTableName) {
 
 		try {
-			FileOutputStream fileOut = new FileOutputStream("./src/main/resources/data/" + tableName + "P" + indicator + ".class");
+			FileOutputStream fileOut = new FileOutputStream("./src/main/resources/data/" + strTableName + "P" + indicator + ".class");
 			ObjectOutputStream out = new ObjectOutputStream(fileOut);
 			out.writeObject(page);
 			out.close();
@@ -275,7 +288,13 @@ public class Table implements Serializable {
 			if (checkType(name, value)) {
 				if(value.getClass().getName().equals("java.lang.Double")||value.getClass().getName().equals("java.lang.Integer")) {
 					attrs.add(String.valueOf(value));
-				}else {	attrs.add((String) value);}
+				}else if (value.getClass().getName().equals("java.util.Date")){
+					Date date = (Date) value;
+					DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd");
+					String strDate = dateFormat.format(date);
+					attrs.add(strDate);
+				}
+				else {	attrs.add((String) value);}
 			
 				colNames.add(name);
 				if (name.equals(tableKey)) {
@@ -295,7 +314,8 @@ public class Table implements Serializable {
 			Vector<Tuple> tempVector = currentPage.readTuples();
 			for (int j = 0; j < tempVector.size(); j++) {
 				if (tempVector.get(j).compareTo(tupleToDelete) == 0) {
-					tempVector.remove(j--);
+					tempVector.remove(j);
+					j--;
 					if (tempVector.size() == 0 && i != pages.size() - 1) {
 						shiftPagesUp(i,strTableName);
 					} else if (!(tempVector.size() == 0) && i != pages.size() - 1) {
@@ -310,7 +330,7 @@ public class Table implements Serializable {
 
 	public void removePage(int pageNo) {
 		pages.remove(pageNo);
-		File toBeDeleted = new File(tableName + " P" + pageNo + ".class");
+		File toBeDeleted = new File(tableName + "P" + pageNo + ".class");
 
 		if (toBeDeleted.delete()) {
 			System.out.println("File" + pageNo + "Deleted");
@@ -336,6 +356,7 @@ public class Table implements Serializable {
 
 		Vector<String> colNames = new Vector<String>();
 		Set<String> names = htblColNameValue.keySet();
+
 		int key = -1;
 		for (String name : names) {
 
@@ -344,6 +365,11 @@ public class Table implements Serializable {
 			if (checkType(name, value)) {
 				if(value.getClass().getName().equals("java.lang.Double")||value.getClass().getName().equals("java.lang.Integer")){
 					attrs.add(String.valueOf(value));
+				}else if (value.getClass().getName().equals("java.util.Date")){
+					Date date = (Date) value;
+					DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd");
+					String strDate = dateFormat.format(date);
+					attrs.add(strDate);
 				}else {attrs.add((String) value);}
 				
 				colNames.add(name);
@@ -359,19 +385,22 @@ public class Table implements Serializable {
 		}
 
 		Tuple tupleToInsert = new Tuple(attrs, key, colNames);
-
-		Page currentPage = null;
-
-		for (int i = 0; i < pages.size() - 1; i++) {
+		
+		Page currentPage ;
+		System.out.println(pages.size());
+		for (int i = 0; i < pages.size()-1 ; i++) {
 			currentPage = readPage(i,strTableName);
-			
+			System.out.println("Arrow");
+			System.out.println(currentPage);
+			System.out.println(i);
 			Vector<Tuple> tempVector = currentPage.readTuples();
+			
 			for (int j = 0; j < tempVector.size(); j++) {
 				System.out.println(tupleToInsert);
 				System.out.println(tempVector.get(j));
 				if (tempVector.get(j).compareTo(tupleToInsert) == 2
 						|| tempVector.get(j).compareTo(tupleToInsert) == 0) {
-					throw new DBAppException("Duplicate Insertion");
+					return;
 				}
 				if (tempVector.get(j).compareTo(tupleToInsert) > 0) {
 					if (j == 0 && i > 0) {
@@ -412,7 +441,7 @@ public class Table implements Serializable {
 		Vector<Tuple> tempVector = currentPage.readTuples();
 		for (int j = 0; j < tempVector.size(); j++) {
 			if (tempVector.get(j).compareTo(tupleToInsert) == 2 || tempVector.get(j).compareTo(tupleToInsert) == 0) {
-				throw new DBAppException("Duplicate Insertion");
+				return;
 			}
 		}
 		if (tempVector.size() == maxRows) {
