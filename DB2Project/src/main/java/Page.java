@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Vector;
 
 public class Page implements Serializable {
@@ -12,14 +13,24 @@ public class Page implements Serializable {
 	private Vector<Tuple> tuples = new Vector<Tuple>();
 	private Object max;
 	private Object min;
+	private int size;
+	
 	
 		
-
+	public int getsize() {
+		return size;
+	}
+	
+	
 	public void addTuple(Tuple tuple) {
 		tuples.add(tuple);
+		size ++;
 	}
 	public Vector<Tuple> readTuples() {
 		return tuples;
+	}
+	public void writeTuples(Vector<Tuple> tupless) {
+		this.tuples= tupless;
 	}
 	public long getID() {
 		return serialVersionUID;
@@ -27,6 +38,7 @@ public class Page implements Serializable {
 	public void sort(){
 		Collections.sort(tuples);
 	}
+	
 	public static void main(String[] args) {
 		
 	}
@@ -38,7 +50,7 @@ public class Page implements Serializable {
 		int mid;
 		while(low<=high) {
 			mid=low +(high-low)/2;
-			FileInputStream fileIn= new FileInputStream("./src/main/resources/data/" + t.getName() + "P" + key + ".class");
+			FileInputStream fileIn= new FileInputStream("./src/main/resources/data/" + t.getName() + "P" + key + ".ser");
 			ObjectInputStream in= new ObjectInputStream(fileIn);
 			Page p1=(Page) in.readObject();
 			in.close();
